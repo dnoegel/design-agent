@@ -52,7 +52,9 @@ def resolve_model(
 ) -> ResolvedModel:
     """Validate a role's model, effort and output budget against the registry."""
     spec = settings.lead_model() if role == "lead" else settings.role_model(role)
-    base_url = settings.model_base_url if spec == settings.lead_model() else None
+    # The compatible endpoint serves every role on the lead's provider (e.g. a cheaper `look` model
+    # on the same router); a role on another provider keeps that provider's own API.
+    base_url = settings.model_base_url if spec.provider == settings.lead_model().provider else None
     caps = capabilities_for(spec, base_url=base_url)
     if role in VISION_ROLES and spec.provider != "scripted":
         require_vision(spec, caps, role=role)
@@ -93,7 +95,7 @@ def build_chat_model(
     }
     if resolved.base_url is not None:
         kwargs["base_url"] = resolved.base_url
-        key = _named_key(settings.model_api_key_env, project_root)
+        key = named_key(settings.model_api_key_env, project_root)
         if key is None:
             raise ModelConfigurationError(
                 "DESIGN_AGENT_MODEL_BASE_URL needs DESIGN_AGENT_MODEL_API_KEY_ENV naming the "
@@ -184,7 +186,7 @@ def _gateway_key(settings: Settings) -> str:
     return ""
 
 
-def _named_key(env_name: str | None, project_root: Path | None) -> str | None:
+def named_key(env_name: str | None, project_root: Path | None) -> str | None:
     """The value of the variable `env_name` from the process or the project `.env`."""
     if not env_name:
         return None
