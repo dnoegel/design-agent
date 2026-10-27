@@ -124,6 +124,10 @@ class Settings(BaseSettings):
 
     # Media providers (host tools; keys never enter the sandbox)
     image_model: str = "gpt-image-2.5-flare"
+    image_endpoint: str | None = None
+    """An OpenAI-compatible image endpoint (OpenRouter: `https://openrouter.ai/api/v1/images`)."""
+    image_api_key_env: str | None = None
+    """Name of the env var holding the key for `image_endpoint`; OPENAI_API_KEY otherwise."""
     elevenlabs_api_key: SecretStr | None = Field(
         default=None, validation_alias=_alias("ELEVENLABS_API_KEY")
     )
@@ -213,6 +217,8 @@ class Settings(BaseSettings):
         "learning_model",
         "model_base_url",
         "model_api_key_env",
+        "image_endpoint",
+        "image_api_key_env",
         "sandbox_snapshot",
         "slack_background_color",
         "trace_host",

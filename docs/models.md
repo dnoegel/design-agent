@@ -25,7 +25,14 @@ DESIGN_AGENT_LOOK_MODEL=anthropic:anthropic/claude-haiku-5-5
 DESIGN_AGENT_MODEL_BASE_URL=https://openrouter.ai/api
 DESIGN_AGENT_MODEL_API_KEY_ENV=OPENROUTER_API_KEY
 OPENROUTER_API_KEY=sk-or-…
+# Images through OpenRouter too, so one key covers the visual workflow:
+DESIGN_AGENT_IMAGE_MODEL=openai/gpt-image-2
+DESIGN_AGENT_IMAGE_ENDPOINT=https://openrouter.ai/api/v1/images
+DESIGN_AGENT_IMAGE_API_KEY_ENV=OPENROUTER_API_KEY
 ```
+
+Without `DESIGN_AGENT_IMAGE_ENDPOINT`, `generate_image` calls OpenAI with `OPENAI_API_KEY`. Voice,
+music and sound effects stay on ElevenLabs.
 
 Tool search runs on the portable selector (OpenRouter implements only the regex variant), and
 helper tool clearing (`DESIGN_AGENT_ENABLE_TOOL_CLEARING`) is unverified there, so leave it off.

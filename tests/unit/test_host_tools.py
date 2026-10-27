@@ -188,3 +188,41 @@ async def test_generate_image_writes_b64_output_and_reports_alpha(
     assert "wrote /workspace/projects/p/lamp.png" in result and "alpha verified" in result
     assert seen["body"]["model"] == "gpt-image-2.5-flare"
     assert seen["url"].startswith("https://api.openai.com/")
+
+
+async def test_generate_image_uses_a_configured_endpoint_and_its_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = {"data": [{"b64_json": base64.b64encode(_png(2, 2, 255)).decode()}]}
+    seen: dict[str, Any] = {}
+
+    async def fake_post(self: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        seen.update(url=url, auth=kwargs["headers"]["Authorization"], body=kwargs["json"])
+        return httpx.Response(
+            200, content=json.dumps(payload).encode(), request=httpx.Request("POST", url)
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None,
+        openai_api_key="sk-openai-unused",
+        image_model="openai/gpt-image-2",
+        image_endpoint="https://openrouter.ai/api/v1/images",
+        image_api_key_env="OPENROUTER_API_KEY",
+    )
+    tools = {t.name: t for t in build_media_tools(settings, lambda _rt: MemoryBackend())}  # type: ignore[arg-type]
+    result = await tools["generate_image"].coroutine(
+        prompt="a lamp", sandbox_path="/workspace/projects/p/lamp.png", runtime=None
+    )  # type: ignore[misc]
+    assert "wrote /workspace/projects/p/lamp.png" in result
+    assert seen["url"] == "https://openrouter.ai/api/v1/images"
+    assert seen["auth"] == "Bearer sk-or-test"
+    assert seen["body"]["model"] == "openai/gpt-image-2"
+
+    monkeypatch.delenv("OPENROUTER_API_KEY")
+    monkeypatch.chdir("/")
+    tools = {t.name: t for t in build_media_tools(settings, lambda _rt: MemoryBackend())}  # type: ignore[arg-type]
+    assert "no OPENROUTER_API_KEY configured" in await tools["generate_image"].coroutine(
+        prompt="a lamp", sandbox_path="/workspace/projects/p/lamp.png", runtime=None
+    )  # type: ignore[misc]

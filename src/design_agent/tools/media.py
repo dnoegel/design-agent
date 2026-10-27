@@ -16,6 +16,7 @@ import shlex
 import struct
 import zlib
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -24,6 +25,7 @@ from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import JsonValue
 
 from design_agent.config import Settings
+from design_agent.models.factory import named_key
 from design_agent.tools.files import (
     BackendFor,
     WorkspaceError,
@@ -48,17 +50,29 @@ class MediaKeys:
     elevenlabs: str | None
     groq: str | None
     image_model: str
+    image_url: str
+    image_key: str | None
+    image_key_name: str
 
     @classmethod
     def from_settings(cls, settings: Settings) -> MediaKeys:
         def value(secret: Any) -> str | None:
             return secret.get_secret_value() if secret is not None else None
 
+        openai = value(settings.openai_api_key)
+        if settings.image_endpoint and settings.image_api_key_env:
+            image_key = named_key(settings.image_api_key_env, Path.cwd())
+            image_key_name = settings.image_api_key_env
+        else:
+            image_key, image_key_name = openai, "OPENAI_API_KEY"
         return cls(
-            openai=value(settings.openai_api_key),
+            openai=openai,
             elevenlabs=value(settings.elevenlabs_api_key),
             groq=value(settings.groq_api_key),
             image_model=settings.image_model,
+            image_url=settings.image_endpoint or f"{OPENAI_BASE_URL}/images/generations",
+            image_key=image_key,
+            image_key_name=image_key_name,
         )
 
 
@@ -550,7 +564,7 @@ def build_media_tools(settings: Settings, backend_for: BackendFor) -> list[BaseT
         params: dict[str, JsonValue] | None = None,
         model: str | None = None,
     ) -> str:
-        """Generate images with OpenAI's image models and save them under /workspace.
+        """Generate images with the configured image model and save them under /workspace.
 
         Read the image-generation skill first. Anything with the logo or exact copy is built in
         HTML on brand, not left to the image model: composite real text and logos afterwards.
@@ -562,8 +576,8 @@ def build_media_tools(settings: Settings, backend_for: BackendFor) -> list[BaseT
         try:
             path = workspace_path(sandbox_path)
             backend = require_backend(backend_for, runtime)
-            if not keys.openai:
-                return "image generation unavailable: no OPENAI_API_KEY configured."
+            if not keys.image_key:
+                return f"image generation unavailable: no {keys.image_key_name} configured."
             body: dict[str, JsonValue] = {
                 "model": model or keys.image_model,
                 "prompt": prompt,
@@ -580,12 +594,12 @@ def build_media_tools(settings: Settings, backend_for: BackendFor) -> list[BaseT
             wants_alpha = str(body.get("background", "")).strip().lower() == "transparent"
             async with httpx.AsyncClient(timeout=240, follow_redirects=False) as client:
                 response = await client.post(
-                    f"{OPENAI_BASE_URL}/images/generations",
-                    headers={"Authorization": f"Bearer {keys.openai}"},
+                    keys.image_url,
+                    headers={"Authorization": f"Bearer {keys.image_key}"},
                     json=body,
                 )
             if response.status_code != 200:
-                return f"image generation failed: OpenAI HTTP {response.status_code}{_reason(response)}"
+                return f"image generation failed: HTTP {response.status_code}{_reason(response)}"
             items = response.json().get("data") or []
             written: list[str] = []
             reports: list[str] = []
@@ -596,9 +610,7 @@ def build_media_tools(settings: Settings, backend_for: BackendFor) -> list[BaseT
                         return f"generated image too large: limit {_IMAGE_GEN_CAP_MB} MB."
                     data = base64.b64decode(encoded, validate=True)
                 elif item.get("url"):
-                    data = await _download(
-                        item["url"], cap_mb=_IMAGE_GEN_CAP_MB, provider="OpenAI image"
-                    )
+                    data = await _download(item["url"], cap_mb=_IMAGE_GEN_CAP_MB, provider="image")
                 else:
                     continue
                 stem, extension = posixpath.splitext(path)
