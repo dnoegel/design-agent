@@ -107,6 +107,10 @@ CAPABILITY_REGISTRY: dict[str, ModelCapabilities] = {
     "anthropic:claude-sonnet-5-5": _claude("high"),
     # No effort parameter: a fast, cheap model for `look` and the tool selector.
     "anthropic:claude-haiku-5-5": _claude(None, efforts=frozenset()),
+    # Router ids (OpenRouter) on an Anthropic-compatible `DESIGN_AGENT_MODEL_BASE_URL`: the same
+    # model and API, so caching, effort and adaptive thinking hold; tool search goes portable.
+    "anthropic:anthropic/claude-opus-5-5": _claude("high"),
+    "anthropic:anthropic/claude-haiku-5-5": _claude(None, efforts=frozenset()),
     "openai:gpt-6.1-sol": _openai("medium"),
     "openai:gpt-6-sol": _openai("medium"),
     "openai:gpt-5.6-sol": _openai("medium"),

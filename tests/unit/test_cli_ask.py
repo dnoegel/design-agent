@@ -25,6 +25,9 @@ def test_ask_waits_for_helpers_and_continues_threads(
     monkeypatch.setattr(inbox_module, "COALESCE_SECONDS", 0.05)
     monkeypatch.setenv("DESIGN_AGENT_WORKSPACE_ROOT", str(tmp_path / "ws"))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-not-used")  # the scripted model needs none
+    # Pin the default model so a developer .env (another provider or endpoint) cannot leak in.
+    monkeypatch.setenv("DESIGN_AGENT_MODEL", "anthropic:claude-opus-5-5")
+    monkeypatch.setenv("DESIGN_AGENT_MODEL_BASE_URL", "")
     monkeypatch.setattr(cli, "_root", lambda: ROOT)
 
     def on_wake(messages: Sequence[BaseMessage]) -> AIMessage:
@@ -71,6 +74,9 @@ def test_ask_waits_for_helpers_and_continues_threads(
 def test_ask_attaches_files_to_the_sandbox(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DESIGN_AGENT_WORKSPACE_ROOT", str(tmp_path / "ws"))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test-not-used")  # the scripted model needs none
+    # Pin the default model so a developer .env (another provider or endpoint) cannot leak in.
+    monkeypatch.setenv("DESIGN_AGENT_MODEL", "anthropic:claude-opus-5-5")
+    monkeypatch.setenv("DESIGN_AGENT_MODEL_BASE_URL", "")
     monkeypatch.setattr(cli, "_root", lambda: ROOT)
     seen: list[str] = []
 

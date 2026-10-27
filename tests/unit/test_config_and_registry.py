@@ -128,8 +128,41 @@ def test_base_url_requires_a_named_key(monkeypatch: pytest.MonkeyPatch) -> None:
     assert build_chat_model(s, "lead").openai_api_base == "https://llm.example/v1"  # type: ignore[attr-defined]
 
 
+def test_openrouter_claude_keeps_the_anthropic_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    from design_agent.doctor import missing_model_key
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
+    s = settings(
+        model="anthropic:anthropic/claude-opus-5-5",
+        look_model="anthropic:anthropic/claude-haiku-5-5",
+        model_base_url="https://openrouter.ai/api",
+        model_api_key_env="OPENROUTER_API_KEY",
+    )
+    for role in ("lead", "helper", "look"):
+        assert resolve_model(s, role).caps.disclosure is ToolDisclosure.PORTABLE_SELECTOR
+    lead = build_chat_model(s, "lead")
+    assert isinstance(lead, CachedChatAnthropic)
+    assert lead.anthropic_api_url == "https://openrouter.ai/api"
+    assert lead.model == "anthropic/claude-opus-5-5"
+    assert lead.cache_ttl == "1h"
+    assert lead.effort == "high"  # type: ignore[attr-defined]
+    assert lead.thinking == {"type": "adaptive"}  # type: ignore[attr-defined]
+    look = build_chat_model(s, "look")
+    assert isinstance(look, CachedChatAnthropic)
+    assert look.anthropic_api_url == "https://openrouter.ai/api"
+    assert look.model == "anthropic/claude-haiku-5-5"
+    assert missing_model_key(s) is None
+    monkeypatch.delenv("OPENROUTER_API_KEY")
+    monkeypatch.chdir("/")
+    assert missing_model_key(s) == "OPENROUTER_API_KEY"
+
+
 @pytest.mark.parametrize(
-    "model_id", sorted(k for k in CAPABILITY_REGISTRY if k.startswith(("anthropic:", "openai:")))
+    "model_id",
+    # `vendor/model` ids are routed through a compatible endpoint, not the provider's own API.
+    sorted(
+        k for k in CAPABILITY_REGISTRY if k.startswith(("anthropic:", "openai:")) and "/" not in k
+    ),
 )
 def test_registry_agrees_with_installed_provider_profiles(model_id: str) -> None:
     provider, model = model_id.split(":", 1)

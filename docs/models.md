@@ -13,7 +13,24 @@ default; Google, Groq and Mistral are extras (`uv sync --extra google`). The Lan
 optional preset (`langsmith:anthropic/claude-opus-5-5` with `LANGSMITH_GATEWAY_API_KEY`, else
 `LANGSMITH_API_KEY`), never required. Anthropic and OpenAI models go through the gateway's native
 routes and keep every feature in the table below; other providers use its shared route. For an OpenAI-compatible endpoint, set `DESIGN_AGENT_MODEL_BASE_URL` and
-`DESIGN_AGENT_MODEL_API_KEY_ENV` (the name of the variable that holds its key).
+`DESIGN_AGENT_MODEL_API_KEY_ENV` (the name of the variable that holds its key). The endpoint serves every role
+on the lead's provider. An `anthropic:` model on a base URL speaks the Anthropic Messages API, so a
+compatible router keeps prompt caching, effort and adaptive thinking.
+
+### OpenRouter
+
+```bash
+DESIGN_AGENT_MODEL=anthropic:anthropic/claude-opus-5-5
+DESIGN_AGENT_LOOK_MODEL=anthropic:anthropic/claude-haiku-5-5
+DESIGN_AGENT_MODEL_BASE_URL=https://openrouter.ai/api
+DESIGN_AGENT_MODEL_API_KEY_ENV=OPENROUTER_API_KEY
+OPENROUTER_API_KEY=sk-or-…
+```
+
+Tool search runs on the portable selector (OpenRouter implements only the regex variant), and
+helper tool clearing (`DESIGN_AGENT_ENABLE_TOOL_CLEARING`) is unverified there, so leave it off.
+OpenRouter may route Claude to Bedrock or Vertex; to keep every call on Anthropic, allow only the
+Anthropic provider in the OpenRouter account's provider settings.
 
 ## Roles
 
