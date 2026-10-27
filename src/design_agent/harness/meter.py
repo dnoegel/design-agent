@@ -168,10 +168,14 @@ def price_of(model: str, prices: Mapping[str, Price] | None = None) -> Price | N
     A `provider:model` or gateway `provider:vendor/model` id is looked up by its model part."""
     table = default_prices() if prices is None else prices
     name = model.rpartition(":")[2].rpartition("/")[2]
-    if name in table:
-        return table[name]
-    matches = [listed for listed in table if name.startswith(f"{listed}-")]
-    return table[max(matches, key=len)] if matches else None
+    # Routers report versions with dots (`claude-opus-5.5`) where the provider's id uses dashes.
+    for candidate in dict.fromkeys((name, name.replace(".", "-"))):
+        if candidate in table:
+            return table[candidate]
+        matches = [listed for listed in table if candidate.startswith(f"{listed}-")]
+        if matches:
+            return table[max(matches, key=len)]
+    return None
 
 
 @dataclass(frozen=True)

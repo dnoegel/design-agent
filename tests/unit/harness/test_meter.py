@@ -58,6 +58,7 @@ def test_prices_are_the_list_prices_per_mtok() -> None:
     assert price_of("claude-opus-5-20260401") is opus5
     assert price_of("anthropic:claude-opus-5-5") is opus55  # a provider:model spec
     assert price_of("langsmith:anthropic/claude-opus-5-5") is opus55  # a gateway spec
+    assert price_of("anthropic/claude-opus-5.5") is opus55  # a router's dotted version
     assert price_of("mistral:mistral-large-3") is None
 
 
